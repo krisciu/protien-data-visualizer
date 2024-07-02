@@ -89,6 +89,7 @@ Create a `.env` file in the following path `package/api/.env` with the following
 ```env
 OPENAI_API_KEY=your_openai_api_key
 DATABASE_URL=your_database_url
+PINECONE_API_KEY=your_pinecone_api_key
 ```
 
 ### Local Development
