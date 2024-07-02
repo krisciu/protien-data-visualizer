@@ -119,6 +119,7 @@ PINECONE_API_KEY=your_pinecone_api_key
 - **DELETE /proteins/{entry}**: Delete a protein
 - **GET /protein-stats/{entry}**: Get statistics for a specific protein
 - **POST /query/**: Generate SQL query using OpenAI
+- **POST /feedback/**: This endpoint accepts a `query_id` and a boolean `feedback` flag. If the feedback is positive, the query-result pair is stored in the vector database(currently Pinecone)
 
 ### Deployment
 
