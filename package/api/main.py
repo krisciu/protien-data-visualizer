@@ -14,6 +14,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from lang_folder.agents import classify_input_string_for_conversation, get_ai_response_for_conversation, query_database, get_follow_up_questions_from_ai, get_table_names, classify_input_string_for_chart, generate_chart_spec, get_ai_response_for_chart_conversation
 from fastapi.middleware.cors import CORSMiddleware
+from temp_memory_store import memory_store
 
 
 
@@ -195,14 +196,13 @@ async def query_followup(query_request: QueryRequest):
 
 @app.post("/query/")
 async def query_model(query_request: QueryRequest) -> QueryResponse:
-
     print(f"\nData coming in to query : {query_request}")
 
     # Pick the last conversation from the user
     userQuery = query_request.query
+    query_id = str(uuid4())
 
     try:
-        
         # Check if given input is query or a conversation
         classification = classify_input_string_for_conversation(userQuery)
         print(f"\nThe user input is classified as {classification}")
@@ -211,16 +211,42 @@ async def query_model(query_request: QueryRequest) -> QueryResponse:
         if classification == "conversation":
             # Invoke the LLMChain to get the response
             result = get_ai_response_for_conversation(query_request.context)
-            return {"response": result, "type" : ChatResponseTypes.conversation}
-        else :
+            response = {"response": result, "type": ChatResponseTypes.conversation, "query_id": query_id}
+        else:
             result = query_database(userQuery, query_request.context[:-1])
             # Else pass it to the query generation chain
-            return {"response": result, "type" : ChatResponseTypes.conversation}
+            response = {"response": result, "type": ChatResponseTypes.conversation, "query_id": query_id}
+
+        # Store the query and result
+        memory_store.set(query_id, {"query": userQuery, "result": result}, ttl=300)
+        return response
 
     except Exception as e:
         print(e)
-        # raise HTTPException(status_code=500, detail=str(e))
-        return {"response": "Error in forming output "+ e}
+        return {"response": "Error in forming output " + str(e), "query_id": query_id}
+    
+
+from fastapi import Body
+
+@app.post("/feedback/")
+async def feedback(query_id: str = Body(...), feedback: bool = Body(...), pinecone_client: PineconeClient = Depends(get_pinecone_client)):
+    try:
+        if feedback:
+            # Retrieve the query and result from the temporary memory store using the query_id
+            query_data = memory_store.get(query_id)
+            if query_data:
+                userQuery = query_data["query"]
+                result = query_data["result"]
+                pinecone_client.upsert_data("your_index_id", [userQuery], {"response": result})
+                return {"message": "Feedback received and query stored in vector database"}
+            else:
+                return {"message": "Query not found"}
+        else:
+            return {"message": "Feedback received, query not stored"}
+
+    except Exception as e:
+        print(e)
+        return {"message": "Error processing feedback: " + str(e)}
     
 
 @app.post("/query_chart")
