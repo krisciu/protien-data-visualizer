@@ -12,6 +12,7 @@ export type Message = {
   role: MessageRolesEnum;
   content: string;
   type: MessageContentTypeEnum;
+  queryId?: string;
 };
 
 export type AIRequestPayload = {
@@ -80,4 +81,12 @@ export const updateProtein = async (entry: string, protein: any) => {
 
 export const deleteProtein = async (entry: string) => {
   return apiRequest<any>({ method: "delete", url: `proteins/${entry}` });
+};
+
+export const submitFeedback = async (queryId: string, feedback: boolean) => {
+  return apiRequest<any>({
+    method: "post",
+    url: "feedback/",
+    payload: { query_id: queryId, feedback },
+  });
 };
