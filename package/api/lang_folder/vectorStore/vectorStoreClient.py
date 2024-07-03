@@ -1,4 +1,5 @@
 from uuid import uuid4
+from abc import ABC, abstractmethod
 
 
 class VectorStoreClient(ABC):

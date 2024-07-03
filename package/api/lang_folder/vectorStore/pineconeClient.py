@@ -1,14 +1,16 @@
 import os
 from uuid import uuid4
-from package.api.lang_folder.vectorStore.vectorStoreClient import VectorStoreClient
+from .vectorStoreClient import VectorStoreClient
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec, PodSpec  
 from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings
 import time
 import logging
+from langchain.vectorstores import VectorStore
 
-class PineconeClient(VectorStoreClient):
+
+class PineconeClient(VectorStoreClient, VectorStore):
     def __init__(self, api_key=None, cloud='aws', region='us-east-1'):
         if not api_key:
             api_key = os.environ["PINECONE_API_KEY"]
@@ -76,3 +78,10 @@ class PineconeClient(VectorStoreClient):
         except Exception as e:
             logging.error(f"Error describing index {index_id}: {e}")
             return None
+    def add_texts(self, texts):
+        # TODO: Implement the method when needed
+        raise NotImplementedError("add_texts method is not implemented yet.")
+
+    def from_texts(self, texts):
+        # TODO: Implement the method when needed
+        raise NotImplementedError("from_texts method is not implemented yet.")

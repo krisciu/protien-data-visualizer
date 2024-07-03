@@ -1,9 +1,9 @@
 from lang_folder.templates import INPUT_CLASSIFICATION_PROMPT_TEMPLATE, FORMAT_ANSWER_FROM_QUERY_TEMPLATE, SYSTEM_PROMPT_FOR_QUERY_GENERATION_TEMPLATE, SYSTEM_PROMPT_FOR_NORMAL_CONVERSATION_TEMPLATE, SYSTEM_PROMPT_FOR_FOLLOW_UP_QUESTION_GENERATION, TABLE_DETAILS_PROMPT_TEMPLATE, CHART_CLASSIFICATION_PROMPT_TEMPLATE, SYSTEM_PROMPT_FOR_CHART_GENERATION_TEMPLATE, SYSTEM_PROMPT_FOR_CHART_CONVERSATION_TEMPLATE
-from lang_folder.vectorStore import vectorstore
 from langchain_openai import OpenAIEmbeddings
 from lang_folder.few_shot_examples import few_shot_examples
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, PromptTemplate
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
+from lang_folder.vectorStore.pineconeClient import PineconeClient
 
 INPUT_CLASSIFICATION_PROMPT = PromptTemplate.from_template(
     INPUT_CLASSIFICATION_PROMPT_TEMPLATE
@@ -20,6 +20,19 @@ ANSWER_USER_QUESTION_PROMPT = PromptTemplate.from_template(
 TABLE_DETAILS_PROMPT  = PromptTemplate.from_template(
     TABLE_DETAILS_PROMPT_TEMPLATE
 )
+
+#pinecone_client = PineconeClient(api_key=os.getenv("PINECONE_API_KEY"))
+#embedding_model = OpenAIEmbeddings()
+
+#index_id = "few-shot-examples"
+#dimension = 1536
+#pinecone_client.create_index(index_id, dimension)
+
+# Embed and store examples
+#for example in few_shot_examples:
+    #embedding = embedding_model.embed(example["input"])
+    #pinecone_client.upsert_data(index_id, [example["input"]], {"query": example["query"]})
+
 
 
 # Prompt to generate chart schema based on table information and current conversation
@@ -73,13 +86,15 @@ FEW_SHOT_PROMPT = FewShotChatMessagePromptTemplate(
     input_variables=["input"], # The variable holds the value sent from the user 
 )
 
-def _getSemanticExampleSelectorChain(top_k = 2, input_field="input"):
-    return SemanticSimilarityExampleSelector.from_examples(
-        few_shot_examples, # Passing in all the available examples
-        OpenAIEmbeddings(), # Using a pre trained embedding for both the query and the examples
-        vectorstore, # Vector database that helps us with semantic search
-        k=top_k, # Pick just the top 2 examples that are semantically similar to the input question from the user
-        input_keys=[input_field], # Helps us pick the input queries that were similar to the previously asked queries, in real life, as users ask queries and keep using the app, we can get more examples so the system can learn from it's users
+def _getSemanticExampleSelectorChain(top_k=2, input_field="input"):
+    # Initialize the PineconeClient
+    pinecone_client = PineconeClient()
+    
+    # Create the SemanticSimilarityExampleSelector using the PineconeClient
+    return SemanticSimilarityExampleSelector(
+        vectorstore=pinecone_client,  # PineconeClient is used directly as the vector store
+        k=top_k,  # Number of top semantically similar examples to retrieve
+        input_keys=[input_field]  # The field in the input data to use for similarity comparison
     )
 
 # Whenever this prompt is used, it comes along with the few shot examples selected
