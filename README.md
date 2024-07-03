@@ -74,7 +74,7 @@ The screenshot shows a tabbed interface for visualizing protein data. The active
 
 ### Environment Variables
 
-#### Frontned
+#### Frontend
 
 Create a `.env` file in the following path `package/dashboards/protein-dashboard/.env` with the following content: 
 
@@ -90,6 +90,8 @@ Create a `.env` file in the following path `package/api/.env` with the following
 OPENAI_API_KEY=your_openai_api_key
 DATABASE_URL=your_database_url
 PINECONE_API_KEY=your_pinecone_api_key
+LANGCHAIN_API_KEY=your_langchain_api_key
+LANGCHAIN_TRACING_V2=true
 ```
 
 ### Local Development

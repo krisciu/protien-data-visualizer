@@ -23,6 +23,7 @@ export type AIRequestPayload = {
 export type AIResponsePayload = {
   type: MessageContentTypeEnum,
   response: string;
+  query_id?: string;
 }
 
 export type FollowUpQuestionsResponse = {

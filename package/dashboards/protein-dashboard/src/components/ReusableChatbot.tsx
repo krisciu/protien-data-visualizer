@@ -16,8 +16,9 @@ import {
   MessageRolesEnum,
 } from "../api";
 import VegaChart from "./dynamicCharts/VegaChart";
-import { Button } from "@/components/ui/button";
 import { ChartsData } from "./dynamicCharts/types";
+import { Button } from "@/components/ui/button";
+import FeedbackButtons from "./FeedBackButtons";
 
 interface ReusableChatbotProps {
   initialMessage: string;
@@ -32,6 +33,9 @@ interface ReusableChatbotProps {
   followUpQuestionsCount?: number;
   saveChart?: (chartData: ChartsData) => void
 }
+
+type FeedbackState = 'none' | 'positive' | 'negative';
+
 
 const ReusableChatBot: React.FC<ReusableChatbotProps> = ({
   initialMessage,
@@ -50,6 +54,8 @@ const ReusableChatBot: React.FC<ReusableChatbotProps> = ({
     followUpQuestionsInitial
   );
   const [loading, setLoading] = useState(false);
+  const [feedbackStates, setFeedbackStates] = useState<Record<string, FeedbackState>>({});
+
   const messageEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,11 +88,17 @@ const ReusableChatBot: React.FC<ReusableChatbotProps> = ({
         role: MessageRolesEnum.assistant,
         content: response.response,
         type: response.type,
+        queryId: response.query_id
       },
     ]);
     setLoading(false);
     askForFollowUp();
   };
+
+  const onFeedbackSent = (queryId: string, feedback: 'positive' | 'negative') => {
+    setFeedbackStates({ ...feedbackStates, [queryId]: feedback });
+  };
+
 
   const askForFollowUp = async () => {
     const { follow_up_questions } = await getFollowUpQuestions({
@@ -137,6 +149,23 @@ const ReusableChatBot: React.FC<ReusableChatbotProps> = ({
                   {msg.content}
                 </Markdown>
               )}
+              <div className={msg.role === MessageRolesEnum.human ? "message user" : "message bot"}>
+            {/* Render the message content */}
+            {/* ... */}
+            {/* If the message is from the assistant, render the feedback buttons */}
+            {msg.role === MessageRolesEnum.assistant && (
+              <div>
+                {/* ... existing message rendering ... */}
+                {/* Check if feedback has been given for this message */}
+                {feedbackStates[msg.queryId!] ? ( // Use the non-null assertion operator if you are sure it's never null
+                  <div>Feedback received. Thank you!</div>
+                ) : (
+                  <FeedbackButtons queryId={msg.queryId!} onFeedbackSent={(feedback) => onFeedbackSent(msg.queryId!, feedback)} />
+                )}
+              </div>
+            )}
+          </div>
+
             </div>
           </Fade>
         ))}
