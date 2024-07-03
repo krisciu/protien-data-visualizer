@@ -65,38 +65,47 @@ const ReusableChatBot: React.FC<ReusableChatbotProps> = ({
   const handleSubmit = async (e: React.FormEvent, queryString?: string) => {
     e.preventDefault();
     if (loading || (!query && !queryString)) return;
-
+  
     const currentQuery = query + "";
-
     setQuery("");
-
     setLoading(true);
+  
     const userQuery = queryString || currentQuery;
     const newMessages = [
       ...messages,
       { role: MessageRolesEnum.human, content: userQuery, type: MessageContentTypeEnum.conversation },
     ];
     setMessages(newMessages);
-
-    const response = await getAIResponse({
-      query: userQuery,
-      context: messages,
-    });
-    setMessages([
-      ...newMessages,
-      {
-        role: MessageRolesEnum.assistant,
-        content: response.response,
-        type: response.type,
-        queryId: response.query_id
-      },
-    ]);
-    setLoading(false);
-    askForFollowUp();
+  
+    try {
+      const response = await getAIResponse({
+        query: userQuery,
+        context: messages,
+      });
+  
+      console.log('AI Response:', JSON.stringify(response));
+  
+      setMessages([
+        ...newMessages,
+        {
+          role: MessageRolesEnum.assistant,
+          content: response.response,
+          type: response.type,
+          queryId: response.query_id,
+        },
+      ]);
+      console.log('Updated Messages:', JSON.stringify(messages));
+      askForFollowUp();
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onFeedbackSent = (queryId: string, feedback: 'positive' | 'negative') => {
     setFeedbackStates({ ...feedbackStates, [queryId]: feedback });
+    console.log(`Feedback states: ${JSON.stringify(feedbackStates)}`);
   };
 
 
@@ -150,14 +159,9 @@ const ReusableChatBot: React.FC<ReusableChatbotProps> = ({
                 </Markdown>
               )}
               <div className={msg.role === MessageRolesEnum.human ? "message user" : "message bot"}>
-            {/* Render the message content */}
-            {/* ... */}
-            {/* If the message is from the assistant, render the feedback buttons */}
             {msg.role === MessageRolesEnum.assistant && (
               <div>
-                {/* ... existing message rendering ... */}
-                {/* Check if feedback has been given for this message */}
-                {feedbackStates[msg.queryId!] ? ( // Use the non-null assertion operator if you are sure it's never null
+                {feedbackStates[msg.queryId!] ? (
                   <div>Feedback received. Thank you!</div>
                 ) : (
                   <FeedbackButtons queryId={msg.queryId!} onFeedbackSent={(feedback) => onFeedbackSent(msg.queryId!, feedback)} />

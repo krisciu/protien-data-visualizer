@@ -4,7 +4,9 @@ from lang_folder.few_shot_examples import few_shot_examples
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, PromptTemplate
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from lang_folder.vectorStore.pineconeClient import PineconeClient
-
+#TODO: remove this and fix directory structure 
+def get_pinecone_client():
+    return PineconeClient()
 INPUT_CLASSIFICATION_PROMPT = PromptTemplate.from_template(
     INPUT_CLASSIFICATION_PROMPT_TEMPLATE
 )
@@ -88,7 +90,7 @@ FEW_SHOT_PROMPT = FewShotChatMessagePromptTemplate(
 
 def _getSemanticExampleSelectorChain(top_k=2, input_field="input"):
     # Initialize the PineconeClient
-    pinecone_client = PineconeClient()
+    pinecone_client = get_pinecone_client()
     
     # Create the SemanticSimilarityExampleSelector using the PineconeClient
     return SemanticSimilarityExampleSelector(

@@ -2,7 +2,7 @@ import json
 from dotenv import load_dotenv
 from typing import List
 from models import protein_data
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Request, Body
 from protein import ProteinBase
 from database import database
 import logging
@@ -15,10 +15,16 @@ from fastapi.responses import JSONResponse
 from lang_folder.agents import classify_input_string_for_conversation, get_ai_response_for_conversation, query_database, get_follow_up_questions_from_ai, get_table_names, classify_input_string_for_chart, generate_chart_spec, get_ai_response_for_chart_conversation
 from fastapi.middleware.cors import CORSMiddleware
 from temp_memory_store import memory_store
+from dependencies import get_pinecone_client
+from lang_folder.vectorStore.pineconeClient import PineconeClient
+from uuid import uuid4
+from pydantic import BaseModel, ValidationError
+
 
 
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -201,6 +207,8 @@ async def query_model(query_request: QueryRequest) -> QueryResponse:
     # Pick the last conversation from the user
     userQuery = query_request.query
     query_id = str(uuid4())
+    print(f"Generated query_id: {query_id}")
+
 
     try:
         # Check if given input is query or a conversation
@@ -219,6 +227,8 @@ async def query_model(query_request: QueryRequest) -> QueryResponse:
 
         # Store the query and result
         memory_store.set(query_id, {"query": userQuery, "result": result}, ttl=300)
+        print(f"\nResponse from query : {response}")
+
         return response
 
     except Exception as e:
@@ -228,25 +238,41 @@ async def query_model(query_request: QueryRequest) -> QueryResponse:
 
 from fastapi import Body
 
+class FeedbackRequest(BaseModel):
+    query_id: str
+    feedback: bool
+
 @app.post("/feedback/")
-async def feedback(query_id: str = Body(...), feedback: bool = Body(...), pinecone_client: PineconeClient = Depends(get_pinecone_client)):
+async def feedback(
+    request: Request,
+    feedback_request: FeedbackRequest = Body(...),
+    pinecone_client: PineconeClient = Depends(get_pinecone_client)
+):
     try:
-        if feedback:
+        # Log the entire request body
+        logger.info(f"Incoming request body: {await request.json()}")
+        
+        # Log the parsed parameters
+        logger.info(f"Parsed request data: {feedback_request}")
+
+        if feedback_request.feedback:
             # Retrieve the query and result from the temporary memory store using the query_id
-            query_data = memory_store.get(query_id)
+            query_data = memory_store.get(feedback_request.query_id)
             if query_data:
                 userQuery = query_data["query"]
                 result = query_data["result"]
                 pinecone_client.upsert_data("your_index_id", [userQuery], {"response": result})
                 return {"message": "Feedback received and query stored in vector database"}
             else:
-                return {"message": "Query not found"}
+                raise HTTPException(status_code=404, detail="Query not found")
         else:
             return {"message": "Feedback received, query not stored"}
-
+    except ValidationError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=422, detail="Invalid request format")
     except Exception as e:
-        print(e)
-        return {"message": "Error processing feedback: " + str(e)}
+        logger.error(f"Error processing feedback: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
     
 
 @app.post("/query_chart")

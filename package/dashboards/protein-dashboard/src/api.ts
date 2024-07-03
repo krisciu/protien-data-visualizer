@@ -5,7 +5,7 @@ export enum MessageRolesEnum {
 }
 export enum MessageContentTypeEnum {
   chart="chart",
-  conversation="conversation",
+  conversation="conversation", 
 }
 
 export type Message = {
@@ -21,9 +21,9 @@ export type AIRequestPayload = {
 };
 
 export type AIResponsePayload = {
-  type: MessageContentTypeEnum,
   response: string;
-  query_id?: string;
+  type: MessageContentTypeEnum,
+  query_id: string;
 }
 
 export type FollowUpQuestionsResponse = {
@@ -85,9 +85,16 @@ export const deleteProtein = async (entry: string) => {
 };
 
 export const submitFeedback = async (queryId: string, feedback: boolean) => {
-  return apiRequest<any>({
-    method: "post",
-    url: "feedback/",
-    payload: { query_id: queryId, feedback },
-  });
+  try {
+    const response = await apiRequest<any>({
+      method: 'post',
+      url: 'feedback/',
+      payload: { query_id: queryId, feedback: feedback },
+    });
+    console.log('Response:', response);
+    return response;
+  } catch (error: any) {
+    console.error('Error submitting feedback:', error);
+    throw error; 
+  }
 };

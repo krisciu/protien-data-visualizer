@@ -17,7 +17,11 @@ export const apiRequest = async <T>({ method, url, payload }: RequestConfig): Pr
       method,
       url: fullUrl,
       data: payload,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     };
+    console.log(JSON.stringify(options))
 
     const response = await axios.request<T>(options);
     return response.data;
