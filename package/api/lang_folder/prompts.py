@@ -4,9 +4,8 @@ from lang_folder.few_shot_examples import few_shot_examples
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate, PromptTemplate
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from lang_folder.vectorStore.pineconeClient import PineconeClient
-#TODO: remove this and fix directory structure 
-def get_pinecone_client():
-    return PineconeClient()
+
+
 INPUT_CLASSIFICATION_PROMPT = PromptTemplate.from_template(
     INPUT_CLASSIFICATION_PROMPT_TEMPLATE
 )
@@ -22,19 +21,6 @@ ANSWER_USER_QUESTION_PROMPT = PromptTemplate.from_template(
 TABLE_DETAILS_PROMPT  = PromptTemplate.from_template(
     TABLE_DETAILS_PROMPT_TEMPLATE
 )
-
-#pinecone_client = PineconeClient(api_key=os.getenv("PINECONE_API_KEY"))
-#embedding_model = OpenAIEmbeddings()
-
-#index_id = "few-shot-examples"
-#dimension = 1536
-#pinecone_client.create_index(index_id, dimension)
-
-# Embed and store examples
-#for example in few_shot_examples:
-    #embedding = embedding_model.embed(example["input"])
-    #pinecone_client.upsert_data(index_id, [example["input"]], {"query": example["query"]})
-
 
 
 # Prompt to generate chart schema based on table information and current conversation
@@ -88,15 +74,17 @@ FEW_SHOT_PROMPT = FewShotChatMessagePromptTemplate(
     input_variables=["input"], # The variable holds the value sent from the user 
 )
 
-def _getSemanticExampleSelectorChain(top_k=2, input_field="input"):
+def _getSemanticExampleSelectorChain(top_k=3, input_field="input"):
     # Initialize the PineconeClient
-    pinecone_client = get_pinecone_client()
+    #TODO: fix structure so we can use dependency injection as in main.py
+    pinecone_client = PineconeClient()
+    pinecone_client.load_few_shot_examples(few_shot_examples)
     
     # Create the SemanticSimilarityExampleSelector using the PineconeClient
     return SemanticSimilarityExampleSelector(
-        vectorstore=pinecone_client,  # PineconeClient is used directly as the vector store
-        k=top_k,  # Number of top semantically similar examples to retrieve
-        input_keys=[input_field]  # The field in the input data to use for similarity comparison
+        vectorstore=pinecone_client,  
+        k=top_k,  
+        input_keys=[input_field] 
     )
 
 # Whenever this prompt is used, it comes along with the few shot examples selected

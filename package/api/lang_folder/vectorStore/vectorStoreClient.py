@@ -28,12 +28,9 @@ class VectorStoreClient(ABC):
         pass
 
     @abstractmethod
-    #TODO: consider adding number of results in the future 
     def similarity_search(self, index_id, query, num_results=3):
         pass
+    
     @abstractmethod
     def _get_vector_store_for_index(self,index_id, embedding):
         pass
-    #Relevancy search vector key = user query, value = sql code
-
-    #Prompt engineer our followup question ->

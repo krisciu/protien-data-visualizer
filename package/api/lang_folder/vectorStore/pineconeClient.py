@@ -9,15 +9,20 @@ import time
 import logging
 from langchain.vectorstores import VectorStore
 
+DEFAULT_NAMESPACE="query_to_sql"
+DEFAULT_INDEX_ID="default-index_id"
 
 class PineconeClient(VectorStoreClient, VectorStore):
-    def __init__(self, api_key=None, cloud='aws', region='us-east-1'):
+    def __init__(self, api_key=None, cloud='aws', region='us-east-1', dimension=1536, metric='dotproduct', default_index_id=DEFAULT_INDEX_ID):
         if not api_key:
             api_key = os.environ["PINECONE_API_KEY"]
         
         self.client = Pinecone(api_key=api_key)
         self.spec = ServerlessSpec(cloud=cloud, region=region)
         logging.info("Pinecone client initialized")
+
+        if default_index_id not in self.list_indexes():
+            self.create_index(default_index_id, dimension, metric)
 
     def list_indexes(self):
         try:
@@ -53,7 +58,7 @@ class PineconeClient(VectorStoreClient, VectorStore):
         # TODO: we should only allow string values, as the PineConeVectorStore should handle embedding for us
         try:
             vectorStore = self._get_vector_store_for_index(index_id, OpenAIEmbeddings())
-            vectorStore.add_texts(values)
+            vectorStore.add_texts(values, metadata)
             logging.info(f"Data upserted to index {index_id}")
         except Exception as e:
             logging.error(f"Error upserting data to index {index_id}: {e}")
@@ -62,7 +67,7 @@ class PineconeClient(VectorStoreClient, VectorStore):
         # TODO: better namespace here?
         return PineconeVectorStore(index_name=index_id, embedding=embedding, namespace="QueryToSQL")
 
-    def similarity_search(self, index_id, query_text, num_results=3):
+    def similarity_search(self, index_id=DEFAULT_INDEX_ID, query_text="", num_results=3):
         try:
             vectorStore = self._get_vector_store_for_index(index_id, OpenAIEmbeddings())
             results = vectorStore.similarity_search(query_text, num_results)
@@ -78,6 +83,7 @@ class PineconeClient(VectorStoreClient, VectorStore):
         except Exception as e:
             logging.error(f"Error describing index {index_id}: {e}")
             return None
+
     def add_texts(self, texts):
         # TODO: Implement the method when needed
         raise NotImplementedError("add_texts method is not implemented yet.")
@@ -85,3 +91,13 @@ class PineconeClient(VectorStoreClient, VectorStore):
     def from_texts(self, texts):
         # TODO: Implement the method when needed
         raise NotImplementedError("from_texts method is not implemented yet.")
+
+    def load_few_shot_examples(self, examples, index_id=DEFAULT_INDEX_ID):
+            try:
+                embedding_model = OpenAIEmbeddings()
+                for example in examples:
+                    embedding = embedding_model.embed(example["input"])
+                    self.upsert_data(index_id, [example["input"]], {"query": example["query"]})
+                logging.info(f"Few-shot examples loaded into index {index_id}")
+            except Exception as e:
+                logging.error(f"Error loading few-shot examples: {e}")
