@@ -29,6 +29,9 @@ class TempMemoryStore:
         with self.lock:
             if key in self.store:
                 del self.store[key]
+    
+    def get_all(self):
+        return self.store
 
 # Create a global instance of the memory store
 memory_store = TempMemoryStore()

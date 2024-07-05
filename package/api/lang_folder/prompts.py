@@ -84,15 +84,15 @@ def _getSemanticExampleSelectorChain(top_k=3, input_field="input"):
     return SemanticSimilarityExampleSelector(
         vectorstore=pinecone_client,  
         k=top_k,  
-        input_keys=[input_field] 
+        #input_keys=[input_field] 
     )
 
 # Whenever this prompt is used, it comes along with the few shot examples selected
-DYNAMIC_FEW_SHOT_PROMPT_WITH_EXAMPLE_SELECTION = FewShotChatMessagePromptTemplate(
-    example_prompt=_example_prompt_for_few_shot,
-    example_selector=_getSemanticExampleSelectorChain(), # Here rather than passing in all the examples, we pass in the example selector object 
-    input_variables=["input","top_k", "table_info"],
-)
+#DYNAMIC_FEW_SHOT_PROMPT_WITH_EXAMPLE_SELECTION = FewShotChatMessagePromptTemplate(
+ #   example_prompt=_example_prompt_for_few_shot,
+ #   examples=_getSemanticExampleSelectorChain(), #TODO: switch to retriever format
+ #   input_variables=["input","top_k", "table_info"],
+#)
 
 
 # Combined prompt that takes in the following

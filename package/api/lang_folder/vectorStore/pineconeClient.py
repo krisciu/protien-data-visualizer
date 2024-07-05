@@ -9,8 +9,8 @@ import time
 import logging
 from langchain.vectorstores import VectorStore
 
-DEFAULT_NAMESPACE="query_to_sql"
-DEFAULT_INDEX_ID="default-index_id"
+DEFAULT_NAMESPACE="query-to-sql"
+DEFAULT_INDEX_ID="default-index-id"
 
 class PineconeClient(VectorStoreClient, VectorStore):
     def __init__(self, api_key=None, cloud='aws', region='us-east-1', dimension=1536, metric='dotproduct', default_index_id=DEFAULT_INDEX_ID):
@@ -67,13 +67,14 @@ class PineconeClient(VectorStoreClient, VectorStore):
         # TODO: better namespace here?
         return PineconeVectorStore(index_name=index_id, embedding=embedding, namespace="QueryToSQL")
 
-    def similarity_search(self, index_id=DEFAULT_INDEX_ID, query_text="", num_results=3):
+    def similarity_search(self, input="", k=3):
+        #TODO: stop hardcoding index
         try:
-            vectorStore = self._get_vector_store_for_index(index_id, OpenAIEmbeddings())
-            results = vectorStore.similarity_search(query_text, num_results)
+            vectorStore = self._get_vector_store_for_index(DEFAULT_INDEX_ID, OpenAIEmbeddings())
+            results = vectorStore.similarity_search(input, k)
             return results
         except Exception as e:
-            logging.error(f"Error performing similarity search on index {index_id}: {e}")
+            logging.error(f"Error performing similarity search on index {DEFAULT_INDEX_ID}: {e}")
             return []
     
     def describe_index(self, index_id):
@@ -94,10 +95,8 @@ class PineconeClient(VectorStoreClient, VectorStore):
 
     def load_few_shot_examples(self, examples, index_id=DEFAULT_INDEX_ID):
             try:
-                embedding_model = OpenAIEmbeddings()
                 for example in examples:
-                    embedding = embedding_model.embed(example["input"])
-                    self.upsert_data(index_id, [example["input"]], {"query": example["query"]})
+                    self.upsert_data(index_id, [example["input"]], [{"query": example["query"]}])
                 logging.info(f"Few-shot examples loaded into index {index_id}")
             except Exception as e:
                 logging.error(f"Error loading few-shot examples: {e}")

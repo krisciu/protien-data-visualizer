@@ -21,7 +21,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ValidationError
 
 
-DEFAULT_INDEX_ID="default-index_id"
+DEFAULT_INDEX_ID="default-index-id"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -201,7 +201,7 @@ async def query_followup(query_request: QueryRequest):
 
 
 @app.post("/query/")
-async def query_model(query_request: QueryRequest, pinecone_client: PineconeClient = Depends(get_pinecone_client)) -> QueryResponse:
+async def query_model(query_request: QueryRequest) -> QueryResponse:
     print(f"\nData coming in to query : {query_request}")
 
     # Pick the last conversation from the user
@@ -217,17 +217,29 @@ async def query_model(query_request: QueryRequest, pinecone_client: PineconeClie
 
         # If it is a normal question, then just pass it along to the conversation chain
         if classification == "conversation":
+            logger.info("conversation chain reached")
+            print("converation chain reached")
             # Invoke the LLMChain to get the response
             result = get_ai_response_for_conversation(query_request.context)
+            print(f"\nResponse from conversation chain : {result}")
             response = {"response": result, "type": ChatResponseTypes.conversation, "query_id": query_id}
         else:
-            result = query_database(userQuery, query_request.context[:-1])
+            logger.info("query database reached")
+            print("query database reached")
+            result = query_database(userQuery, [query_request.context[-1]])
+            print(f"\nResponse from query database : {result}")
             # Else pass it to the query generation chain
             response = {"response": result, "type": ChatResponseTypes.conversation, "query_id": query_id}
+        
+        logger.info(f"\nResponse from query : {response}")
+        print(f"\nResponse from query : {response}")
 
         # Store the query and result
-        memory_store.set(query_id, {"query": userQuery, "result": result}, ttl=300)
-        print(f"\nResponse from query : {response}")
+        logger.info(f"\nStoring query and result in memory store")
+        print(f"\nStoring query and result in memory store")
+        memory_store.set(query_id, {"input": userQuery, "query": result}, ttl=300)
+        logger.info(f"\nMemory store : {memory_store.get_all()}")
+        print(f"\nMemory store : {memory_store.get_all()}")
 
         return response
 
@@ -244,19 +256,20 @@ class FeedbackRequest(BaseModel):
 
 @app.post("/feedback/")
 async def feedback(
-    request: Request,
     feedback_request: FeedbackRequest = Body(...),
     pinecone_client: PineconeClient = Depends(get_pinecone_client),
-    embedding_model: OpenAIEmbeddings = Depends(get_embedding_model)
 ):
     try:
+        logger.info(feedback_request)
         if feedback_request.feedback:
             # Retrieve the query and result from the temporary memory store using the query_id
             query_data = memory_store.get(feedback_request.query_id)
+            logger.info(query_data)
+            logger.info(memory_store.get_all())
             if query_data:
                 userInput = query_data["input"]
                 query_result = query_data["query"]
-                pinecone_client.upsert_data(DEFAULT_INDEX_ID, [userInput], {"query": query_result})
+                pinecone_client.upsert_data(DEFAULT_INDEX_ID, [userInput], [{"query": query_result}])
                 return {"message": "Feedback received and query stored in vector database"}
             else:
                 raise HTTPException(status_code=404, detail="Query not found")

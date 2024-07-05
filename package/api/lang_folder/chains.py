@@ -8,16 +8,37 @@ from lang_folder.prompts import INPUT_CLASSIFICATION_PROMPT, ANSWER_USER_QUESTIO
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.agent_toolkits import create_sql_agent
-from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool # Tool for querying a SQL database.
+from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
+from package.api.dependencies import get_pinecone_client # Tool for querying a SQL database.
+
+vectorstore_metadata_field_info = [
+    AttributeInfo(
+        name="input",
+        description="The input of the user to the bot",
+        type="string",
+    ),
+    AttributeInfo(
+        name="query",
+        description="The generated SQL query",
+        type="string",
+    ),
+]
+vectorstore_document_content_description = "pairs of user submitted inputs and generated SQL queries"
 
 
 def getGenerateQueryChain(llm, prompt_to_llm:any):
     if prompt_to_llm == "" :
         return create_sql_query_chain(llm, db)
-    return create_sql_query_chain(llm, db, prompt_to_llm)
+    return create_sql_query_chain(llm, db, prompt_to_llm=prompt_to_llm)
 
 def getExecuteQueryChain():
     return QuerySQLDataBaseTool(db=db)
+
+def getRetriever(llm, vectorstore):
+    retriever = SelfQueryRetriever.from_llm(
+        llm, vectorstore, vectorstore_document_content_description, vectorstore_metadata_field_info, verbose=True
+    )
+    return retriever
 
 def get_tables(tables: TableList) -> List[str]:
     """
@@ -62,6 +83,7 @@ classification_chain = INPUT_CLASSIFICATION_PROMPT | getLLM(model="gpt-4") | Str
 chart_classification_chain = CHART_CLASSIFICATION_PROMPT | getLLM(model="gpt-4") | StrOutputParser()
 
 # Related to generating queries
+retriever = getRetriever(llm=getLLM(model="gpt-4"), vectorstore=get_pinecone_client())
 generate_query_chain = getGenerateQueryChain(llm=getLLM(model="gpt-4"), prompt_to_llm="")
 generate_query_chain_with_table_info_and_few_shot_examples = getGenerateQueryChain(getLLM(model="gpt-4"), GENERATE_QUERY_PROMPT_WITH_FEW_SHOT_SELECTION)
 
@@ -100,6 +122,7 @@ parsed_query_output_chain = (
 # Then generates query with the table details of te relevant table and few shot examples
 # Executes the query and formats the response for the user
 generate_response_with_table_info = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()} |
     RunnablePassthrough.assign(table_names_to_use=table_chain) |
     RunnablePassthrough.assign(query=generate_query_chain_with_table_info_and_few_shot_examples).assign(
         result=itemgetter("query") | execute_query_chain

@@ -44,8 +44,18 @@ def get_follow_up_questions_from_ai(conversation):
     return result
 
 def query_database(userQuery, conversation):
+    print(f"userQuery {userQuery}, unformatted conversation: {conversation}")
     formatted_conversation = _helperFunctions["formatConversationForLLM"](conversation)
-    return generate_response_with_table_info.invoke({"question": userQuery, "table_descriptions" : _table_descriptions, "table_dialect" : db.dialect, "conversation" : formatted_conversation })
+    print(f"formatted_conversation {formatted_conversation}")
+    generated_response = None
+    try:
+        #TODO: reduce duplication here
+        generated_response = generate_response_with_table_info.invoke({"question": userQuery, "table_descriptions" : _table_descriptions, "table_dialect" : db.dialect, "conversation" : formatted_conversation })
+        print(f"generated result from query_database chain: {generated_response}")
+    except Exception as e:
+        print(f"Error in query_database chain: {e}, generated response = {generated_response}")
+    print(f"reached end of query_database")
+    return generated_response
 
 def generate_chart_spec(userQuery:str, conversation:any, tableName: str):
     """
